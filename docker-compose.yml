@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  backend:
+    build: ./backend
+    container_name: plant-monitor-backend
+    restart: unless-stopped
+    environment:
+      - ESP32_URL=${ESP32_URL}
+      - ESP32_API_KEY=${ESP32_API_KEY}
+      - POLL_INTERVAL_SECONDS=${POLL_INTERVAL_SECONDS:-30}
+      - HISTORY_RETENTION_DAYS=${HISTORY_RETENTION_DAYS:-30}
+    volumes:
+      - plant-data:/app/app/data
+    ports:
+      # Only needed for local LAN testing - Cloudflare Tunnel reaches this
+      # container over the internal docker network, not through this port.
+      - "8000:8000"
+
+
+volumes:
+  plant-data:

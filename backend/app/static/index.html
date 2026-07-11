@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plant Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1310;
+    --panel: #161d19;
+    --panel-border: #232e28;
+    --text: #e8ede9;
+    --text-muted: #7c8c82;
+    --amber: #f2a340;
+    --amber-dim: #6b5027;
+    --teal: #4fb8a6;
+    --danger: #d9695f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 16px;
+  }
+
+  header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+
+  header h1 span { color: var(--teal); }
+
+  #conn-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+  .dot.ok { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+  .dot.bad { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 560px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+
+  .card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .card .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .card .value .unit {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 2px;
+  }
+
+  .card.soil .value { color: var(--teal); }
+  .card.temp .value { color: var(--text); }
+  .card.humidity .value { color: var(--text); }
+
+  .light-panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    transition: border-color 0.3s;
+  }
+
+  .light-panel.on {
+    border-color: var(--amber-dim);
+    box-shadow: 0 0 24px -8px rgba(242, 163, 64, 0.35) inset;
+  }
+
+  .light-panel .info .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .light-panel .info .state {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .light-panel.on .info .state { color: var(--amber); }
+
+  .schedule-line {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .schedule-line button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: transparent;
+    border: none;
+    color: var(--teal);
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 6px;
+  }
+
+  .switch {
+    position: relative;
+    width: 56px;
+    height: 30px;
+    background: #232e28;
+    border-radius: 999px;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+  }
+
+  .switch .knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  .switch.on { background: var(--amber-dim); }
+  .switch.on .knob {
+    transform: translateX(26px);
+    background: var(--amber);
+    box-shadow: 0 0 10px rgba(242, 163, 64, 0.6);
+  }
+
+  .switch:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .chart-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 16px 18px 8px;
+  }
+
+  .chart-card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .range-buttons { display: flex; gap: 4px; }
+  .range-buttons button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text-muted);
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .range-buttons button.active {
+    color: var(--teal);
+    border-color: var(--teal);
+  }
+
+  canvas { max-height: 220px; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 40px 0;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>plant<span>::</span>monitor</h1>
+    <div id="conn-status"><span class="dot" id="conn-dot"></span><span id="conn-text">connecting</span></div>
+  </header>
+
+  <div class="grid">
+    <div class="card soil">
+      <div class="label">Soil moisture</div>
+      <div class="value" id="soil-value">--<span class="unit">%</span></div>
+    </div>
+    <div class="card temp">
+      <div class="label">Temperature</div>
+      <div class="value" id="temp-value">--<span class="unit">°C</span></div>
+    </div>
+    <div class="card humidity">
+      <div class="label">Humidity</div>
+      <div class="value" id="humidity-value">--<span class="unit">%</span></div>
+    </div>
+  </div>
+
+  <div class="light-panel" id="light-panel">
+    <div class="info">
+      <div class="label">Grow light</div>
+      <div class="state" id="light-state">--</div>
+      <div class="schedule-line" id="schedule-line"></div>
+    </div>
+    <button class="switch" id="light-switch" onclick="toggleLight()">
+      <div class="knob"></div>
+    </button>
+  </div>
+
+  <div class="chart-card">
+    <div class="label">
+      <span>History</span>
+      <div class="range-buttons">
+        <button data-hours="6" onclick="setRange(6, this)">6h</button>
+        <button data-hours="24" class="active" onclick="setRange(24, this)">24h</button>
+        <button data-hours="168" onclick="setRange(168, this)">7d</button>
+      </div>
+    </div>
+    <canvas id="history-chart"></canvas>
+  </div>
+</div>
+
+<script>
+let chart = null;
+let currentHours = 24;
+let lightOn = false;
+
+function fmt(v, digits = 1) {
+  return (v === null || v === undefined) ? '--' : Number(v).toFixed(digits);
+}
+
+async function fetchStatus() {
+  try {
+    const res = await fetch('/api/status');
+    if (!res.ok) throw new Error('status fetch failed');
+    const data = await res.json();
+
+    document.getElementById('soil-value').innerHTML = fmt(data.soil_pct, 0) + '<span class="unit">%</span>';
+    document.getElementById('temp-value').innerHTML = fmt(data.temp_c, 1) + '<span class="unit">°C</span>';
+    document.getElementById('humidity-value').innerHTML = fmt(data.humidity, 0) + '<span class="unit">%</span>';
+
+    lightOn = !!data.light_on;
+    updateLightUI();
+
+    setConn(true);
+  } catch (e) {
+    setConn(false);
+  }
+}
+
+function setConn(ok) {
+  document.getElementById('conn-dot').className = 'dot ' + (ok ? 'ok' : 'bad');
+  document.getElementById('conn-text').textContent = ok ? 'live' : 'unreachable';
+}
+
+function updateLightUI() {
+  document.getElementById('light-panel').className = 'light-panel' + (lightOn ? ' on' : '');
+  document.getElementById('light-switch').className = 'switch' + (lightOn ? ' on' : '');
+  document.getElementById('light-state').textContent = lightOn ? 'ON' : 'OFF';
+}
+
+function fmtHour(h) {
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12} ${period}`;
+}
+
+async function fetchSchedule() {
+  const el = document.getElementById('schedule-line');
+  try {
+    const res = await fetch('/api/schedule');
+    if (!res.ok) throw new Error('no schedule yet');
+    const s = await res.json();
+
+    if (!s.time_synced) {
+      el.innerHTML = 'schedule: waiting on time sync';
+      return;
+    }
+
+    if (s.enabled) {
+      el.innerHTML = `auto &middot; ${fmtHour(s.on_hour)}&ndash;${fmtHour(s.off_hour)}`;
+    } else {
+      el.innerHTML = 'manual override <button onclick="resumeSchedule()">resume schedule</button>';
+    }
+  } catch (e) {
+    el.innerHTML = '';
+  }
+}
+
+async function resumeSchedule() {
+  try {
+    await fetch('/api/schedule/resume', { method: 'POST' });
+    fetchSchedule();
+    fetchStatus();
+  } catch (e) {
+    alert('Could not resume the schedule. Check that the device is online.');
+  }
+}
+
+async function toggleLight() {
+  const btn = document.getElementById('light-switch');
+  btn.disabled = true;
+  const newState = lightOn ? 'off' : 'on';
+  try {
+    const res = await fetch(`/api/light?state=${newState}`, { method: 'POST' });
+    if (!res.ok) throw new Error('light toggle failed');
+    const data = await res.json();
+    lightOn = data.state;
+    updateLightUI();
+    fetchSchedule(); // schedule was just auto-disabled server-side, reflect that
+  } catch (e) {
+    alert('Could not reach the device. Check that it is online.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function fetchHistory(hours) {
+  try {
+    const res = await fetch(`/api/history?hours=${hours}`);
+    const data = await res.json();
+    renderChart(data.readings || []);
+  } catch (e) {
+    renderChart([]);
+  }
+}
+
+function renderChart(readings) {
+  const ctx = document.getElementById('history-chart');
+
+  const labels = readings.map(r => {
+    const d = new Date(r.ts * 1000);
+    return currentHours > 24
+      ? d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+      : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  });
+
+  const soilData = readings.map(r => r.soil_pct);
+  const tempData = readings.map(r => r.temp_c);
+  const humidityData = readings.map(r => r.humidity);
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Soil %',
+          data: soilData,
+          borderColor: '#4fb8a6',
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 2,
+        },
+        {
+          label: 'Temp °C',
+          data: tempData,
+          borderColor: '#e8ede9',
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [4, 3],
+        },
+        {
+          label: 'Humidity %',
+          data: humidityData,
+          borderColor: '#7c8c82',
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [2, 2],
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: { color: '#7c8c82', font: { family: 'JetBrains Mono', size: 11 }, boxWidth: 12 },
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#7c8c82', maxTicksLimit: 8 }, grid: { color: '#232e28' } },
+        y: { ticks: { color: '#7c8c82' }, grid: { color: '#232e28' } },
+      },
+    },
+  });
+}
+
+function setRange(hours, btn) {
+  currentHours = hours;
+  document.querySelectorAll('.range-buttons button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  fetchHistory(hours);
+}
+
+fetchStatus();
+fetchSchedule();
+fetchHistory(currentHours);
+setInterval(fetchStatus, 15000);
+setInterval(fetchSchedule, 15000);
+setInterval(() => fetchHistory(currentHours), 60000);
+</script>
+</body>
+</html>

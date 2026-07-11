@@ -70,9 +70,9 @@ const int SOIL_SAMPLES = 10; // number of ADC reads averaged per soil reading
 // =========================
 // Timing
 // =========================
-const unsigned long DHT_MIN_INTERVAL_MS = 2500;   // don't read DHT11 faster than this
-const unsigned long SAMPLE_INTERVAL_MS = 15000;   // how often to log a reading into history
-const int HISTORY_SIZE = 60;                       // 60 samples * 15s = ~15 min of backlog
+const unsigned long DHT_MIN_INTERVAL_MS = 2500; // don't read DHT11 faster than this
+const unsigned long SAMPLE_INTERVAL_MS = 15000; // how often to log a reading into history
+const int HISTORY_SIZE = 60;                    // 60 samples * 15s = ~15 min of backlog
 
 // =========================
 // Grow light schedule (NTP-based, 8h on / 16h off)
@@ -80,11 +80,11 @@ const int HISTORY_SIZE = 60;                       // 60 samples * 15s = ~15 min
 const char *NTP_SERVER = "pool.ntp.org";
 const char *NTP_SERVER_BACKUP1 = "time.google.com";
 const char *NTP_SERVER_BACKUP2 = "time.cloudflare.com";
-const long GMT_OFFSET_SEC = -8 * 3600;    // TODO: set for your timezone (this is PST, no DST)
-const int DAYLIGHT_OFFSET_SEC = 0;         // set to 3600 if you want automatic DST handling
+const long GMT_OFFSET_SEC = -8 * 3600; // TODO: set for your timezone (this is PST, no DST)
+const int DAYLIGHT_OFFSET_SEC = 0;     // set to 3600 if you want automatic DST handling
 
-const int LIGHT_ON_HOUR = 8;               // light turns on at 08:00 local time
-const int LIGHT_ON_DURATION_HOURS = 8;     // stays on for 8 hours (off at 16:00)
+const int LIGHT_ON_HOUR = 8;           // light turns on at 08:00 local time
+const int LIGHT_ON_DURATION_HOURS = 8; // stays on for 8 hours (off at 16:00)
 
 const unsigned long SCHEDULE_CHECK_INTERVAL_MS = 60000; // check the schedule once a minute
 
@@ -111,8 +111,9 @@ bool scheduleEnabled = true; // toggle via POST /schedule if you want to disable
 bool timeIsSynced = false;   // updated each schedule check, exposed in /status
 bool ntpStarted = false;     // tracks whether configTime() has been called since last connect
 
-struct Reading {
-    unsigned long t;   // seconds since boot
+struct Reading
+{
+    unsigned long t; // seconds since boot
     float temp;
     float humidity;
     int soilPercent;
@@ -130,7 +131,8 @@ int historyHead = 0; // index where next reading will be written
 int readSoilPercent()
 {
     long sum = 0;
-    for (int i = 0; i < SOIL_SAMPLES; i++) {
+    for (int i = 0; i < SOIL_SAMPLES; i++)
+    {
         sum += analogRead(SOIL_PIN);
         delay(5);
     }
@@ -146,7 +148,8 @@ int readSoilPercent()
 void refreshDhtIfNeeded()
 {
     unsigned long now = millis();
-    if (now - lastDhtRead < DHT_MIN_INTERVAL_MS) {
+    if (now - lastDhtRead < DHT_MIN_INTERVAL_MS)
+    {
         return; // keep cached values
     }
 
@@ -154,8 +157,10 @@ void refreshDhtIfNeeded()
     float h = dht.readHumidity();
 
     // Only overwrite cache on a valid read; keep last good value otherwise
-    if (!isnan(t)) cachedTemp = t;
-    if (!isnan(h)) cachedHumidity = h;
+    if (!isnan(t))
+        cachedTemp = t;
+    if (!isnan(h))
+        cachedHumidity = h;
 
     lastDhtRead = now;
 }
@@ -171,7 +176,8 @@ void addHistorySample(int soilPercent)
 
     history[historyHead] = r;
     historyHead = (historyHead + 1) % HISTORY_SIZE;
-    if (historyCount < HISTORY_SIZE) historyCount++;
+    if (historyCount < HISTORY_SIZE)
+        historyCount++;
 }
 
 // =========================
@@ -180,10 +186,12 @@ void addHistorySample(int soilPercent)
 
 void ensureWifiConnected()
 {
-    if (WiFi.status() == WL_CONNECTED) return;
+    if (WiFi.status() == WL_CONNECTED)
+        return;
 
     unsigned long now = millis();
-    if (now - lastWifiCheck < WIFI_CHECK_INTERVAL_MS) return;
+    if (now - lastWifiCheck < WIFI_CHECK_INTERVAL_MS)
+        return;
     lastWifiCheck = now;
 
     Serial.println("WiFi disconnected, attempting reconnect...");
@@ -203,8 +211,22 @@ void initTime()
 void applyLightState(bool on, bool persist)
 {
     lightState = on;
-    digitalWrite(LIGHT_PIN, lightState ? HIGH : LOW);
-    if (persist) prefs.putBool("lightState", lightState);
+
+    if (lightState)
+    {
+        // True = Light ON (Requires LOW signal)
+        pinMode(LIGHT_PIN, INPUT);
+    }
+    else
+    {
+        // False = Light OFF (Requires INPUT state)
+
+        pinMode(LIGHT_PIN, OUTPUT);
+        digitalWrite(LIGHT_PIN, LOW);
+    }
+
+    if (persist)
+        prefs.putBool("lightState", lightState);
 }
 
 // Returns true and fills `desired` if NTP time is available.
@@ -212,7 +234,8 @@ void applyLightState(bool on, bool persist)
 bool desiredLightStateFromSchedule(bool &desired)
 {
     struct tm timeinfo;
-    if (!getLocalTime(&timeinfo, 200)) { // 200ms timeout, only called once/minute
+    if (!getLocalTime(&timeinfo, 200))
+    { // 200ms timeout, only called once/minute
         return false;
     }
 
@@ -226,7 +249,8 @@ bool desiredLightStateFromSchedule(bool &desired)
 // unless scheduleEnabled is false (manual-only mode).
 void runScheduleCheck()
 {
-    if (!scheduleEnabled) return;
+    if (!scheduleEnabled)
+        return;
 
     bool desired;
     bool gotTime = desiredLightStateFromSchedule(desired);
@@ -234,7 +258,8 @@ void runScheduleCheck()
     bool wasSynced = timeIsSynced;
     timeIsSynced = gotTime;
 
-    if (gotTime && !wasSynced) {
+    if (gotTime && !wasSynced)
+    {
         struct tm timeinfo;
         getLocalTime(&timeinfo, 200);
         Serial.printf("NTP time synced: %04d-%02d-%02d %02d:%02d:%02d\n",
@@ -242,7 +267,8 @@ void runScheduleCheck()
                       timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     }
 
-    if (!gotTime) {
+    if (!gotTime)
+    {
         Serial.println("NTP time not yet available (still waiting on sync)");
 
         // Fail-safe: if we don't know what time it is (WiFi down, NTP
@@ -250,14 +276,16 @@ void runScheduleCheck()
         // the side of keeping the light ON so the plant isn't left in the
         // dark for hours by an outage. This only forces a change once -
         // it won't fight a state you already have.
-        if (!lightState) {
+        if (!lightState)
+        {
             Serial.println("No NTP time available - failing safe to light ON");
             applyLightState(true, true);
         }
         return;
     }
 
-    if (desired != lightState) {
+    if (desired != lightState)
+    {
         Serial.printf("Schedule transition: light -> %s\n", desired ? "ON" : "OFF");
         applyLightState(desired, true);
     }
@@ -299,14 +327,20 @@ void handleStatus()
     soilObj["percentage"] = soil;
 
     JsonObject env = doc["environment"].to<JsonObject>();
-    if (isnan(cachedTemp)) {
+    if (isnan(cachedTemp))
+    {
         env["temperature"] = nullptr;
-    } else {
+    }
+    else
+    {
         env["temperature"] = cachedTemp;
     }
-    if (isnan(cachedHumidity)) {
+    if (isnan(cachedHumidity))
+    {
         env["humidity"] = nullptr;
-    } else {
+    }
+    else
+    {
         env["humidity"] = cachedHumidity;
     }
 
@@ -335,14 +369,21 @@ void handleHistory()
 
     // Walk the ring buffer from oldest to newest
     int start = (historyCount < HISTORY_SIZE) ? 0 : historyHead;
-    for (int i = 0; i < historyCount; i++) {
+    for (int i = 0; i < historyCount; i++)
+    {
         int idx = (start + i) % HISTORY_SIZE;
         Reading &r = history[idx];
 
         JsonObject o = arr.add<JsonObject>();
         o["t"] = r.t;
-        if (isnan(r.temp)) o["temp_c"] = nullptr; else o["temp_c"] = r.temp;
-        if (isnan(r.humidity)) o["humidity"] = nullptr; else o["humidity"] = r.humidity;
+        if (isnan(r.temp))
+            o["temp_c"] = nullptr;
+        else
+            o["temp_c"] = r.temp;
+        if (isnan(r.humidity))
+            o["humidity"] = nullptr;
+        else
+            o["humidity"] = r.humidity;
         o["soil_pct"] = r.soilPercent;
         o["light_on"] = r.lightOn;
     }
@@ -354,23 +395,30 @@ void handleHistory()
 
 void handleLight()
 {
-    if (!server.hasArg("key") || server.arg("key") != API_KEY) {
+    if (!server.hasArg("key") || server.arg("key") != API_KEY)
+    {
         server.send(401, "application/json", "{\"error\":\"unauthorized\"}");
         return;
     }
 
-    if (!server.hasArg("state")) {
+    if (!server.hasArg("state"))
+    {
         server.send(400, "application/json", "{\"error\":\"missing state\"}");
         return;
     }
 
     String state = server.arg("state");
 
-    if (state == "on") {
+    if (state == "on")
+    {
         applyLightState(true, true);
-    } else if (state == "off") {
+    }
+    else if (state == "off")
+    {
         applyLightState(false, true);
-    } else {
+    }
+    else
+    {
         server.send(400, "application/json", "{\"error\":\"invalid state\"}");
         return;
     }
@@ -404,12 +452,14 @@ void handleScheduleGet()
 
 void handleScheduleSet()
 {
-    if (!server.hasArg("key") || server.arg("key") != API_KEY) {
+    if (!server.hasArg("key") || server.arg("key") != API_KEY)
+    {
         server.send(401, "application/json", "{\"error\":\"unauthorized\"}");
         return;
     }
 
-    if (!server.hasArg("enabled")) {
+    if (!server.hasArg("enabled"))
+    {
         server.send(400, "application/json", "{\"error\":\"missing enabled\"}");
         return;
     }
@@ -441,8 +491,18 @@ void setup()
     pinMode(LIGHT_PIN, OUTPUT);
 
     prefs.begin("plant-monitor", false);
+    // Read the saved state from preferences
     lightState = prefs.getBool("lightState", false);
-    digitalWrite(LIGHT_PIN, lightState ? HIGH : LOW);
+
+    if (lightState)
+    {
+        pinMode(LIGHT_PIN, INPUT);
+    }
+    else
+    {
+        pinMode(LIGHT_PIN, OUTPUT);
+        digitalWrite(LIGHT_PIN, LOW);
+    }
 
     dht.begin();
 
@@ -450,16 +510,20 @@ void setup()
 
     Serial.print("Connecting");
     unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 15000) {
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 15000)
+    {
         delay(500);
         Serial.print(".");
     }
     Serial.println();
 
-    if (WiFi.status() == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED)
+    {
         Serial.print("IP Address: ");
         Serial.println(WiFi.localIP());
-    } else {
+    }
+    else
+    {
         Serial.println("WiFi not connected yet, will keep retrying in loop()");
     }
     // NTP sync (and re-sync after any reconnect) is kicked off from loop()
@@ -482,25 +546,31 @@ void loop()
     ensureWifiConnected();
     server.handleClient();
 
-    if (WiFi.status() == WL_CONNECTED) {
-        if (!ntpStarted) {
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        if (!ntpStarted)
+        {
             initTime(); // (re)start NTP sync after boot or a reconnect
             ntpStarted = true;
         }
-    } else {
+    }
+    else
+    {
         ntpStarted = false; // force a re-sync once we're back online
     }
 
     unsigned long now = millis();
 
-    if (now - lastSample >= SAMPLE_INTERVAL_MS) {
+    if (now - lastSample >= SAMPLE_INTERVAL_MS)
+    {
         refreshDhtIfNeeded();
         int soil = readSoilPercent();
         addHistorySample(soil);
         lastSample = now;
     }
 
-    if (now - lastScheduleCheck >= SCHEDULE_CHECK_INTERVAL_MS) {
+    if (now - lastScheduleCheck >= SCHEDULE_CHECK_INTERVAL_MS)
+    {
         runScheduleCheck();
         lastScheduleCheck = now;
     }

@@ -17,7 +17,7 @@ A simple plant-monitoring project that collects sensor readings from an ESP32 de
    ```bash
    docker compose up --build
    ```
-3. Open the dashboard at http://localhost:8000
+3. Open the dashboard at http://localhost:3001
 
 ## Configuration
 The main environment variables are defined in [.env.example](.env.example):

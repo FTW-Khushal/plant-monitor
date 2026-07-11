@@ -15,7 +15,7 @@ services:
     ports:
       # Only needed for local LAN testing - Cloudflare Tunnel reaches this
       # container over the internal docker network, not through this port.
-      - "8000:8000"
+      - "3001:8000"
 
 
 volumes:
